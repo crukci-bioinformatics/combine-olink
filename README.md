@@ -104,4 +104,4 @@ So to fix the meta file, we need to:
 This is a bit fiddly by hand, but easily done with a script. This repository contains a converstion
 of my original R script into a Python equivalent that adds up the counts and recalculates the values
 in the meta file, plus sets the file name. I've checked that the numbers it gives are the same as the
-values running ngs2counts on both lanes combined and as two separate lanes.
+values running *ngs2counts* on both lanes combined and as two separate lanes.
