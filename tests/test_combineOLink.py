@@ -1,4 +1,3 @@
-import bz2
 import json
 import os
 import pandas as pd
