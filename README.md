@@ -29,3 +29,79 @@ this repository that will add them to your environment.
 ```BASH
 pip install -r requirements.txt
 ```
+
+## Rationale
+
+In doing the original investigation in August for O-link I tested running *ngs2counts* in a few configurations
+to see what happens when split by lane. Back then it was proven that running *ngs2counts* on a whole two lane
+flowcell produced the same counts as running it per lane and adding the counts together.
+If one does this, and sort by sample, forward and reverse, the files are identical. Thus you do not have to
+run *ngs2counts* over all the lanes together to get the same results.
+
+```
+ngs2counts --library-mapping="1=[1+2]"
+
+sample_index;forward_barcode;reverse_barcode;count
+i3001;FB200002;RB200002;271
+i3001;FB200003;RB200003;11617
+i3001;FB200006;RB200006;1171
+i3001;FB200007;RB200007;50
+```
+
+Per lane:
+
+```
+ngs2counts --library-mapping="1=[1],2=[2]"
+```
+
+Lane 1:
+
+```
+sample_index;forward_barcode;reverse_barcode;count
+i3001;FB200002;RB200002;126
+i3001;FB200003;RB200003;5924
+i3001;FB200006;RB200006;562
+i3001;FB200007;RB200007;33
+```
+
+Lane 2:
+
+```
+sample_index;forward_barcode;reverse_barcode;count
+i3001;FB200002;RB200002;145
+i3001;FB200003;RB200003;5693
+i3001;FB200006;RB200006;609
+i3001;FB200007;RB200007;17
+```
+
+Add these up:
+
+```
+126 + 145 = 271
+5924 + 5693 = 11617
+562 + 609 = 1171
+33 + 17 = 50
+```
+
+So, regardless of what O-link are saying, and I'm sure that it's because they're covering themselves
+that if we make a mistake they won't get the blame, the counts are simply that and the per-lane
+counts can just be combined by summing to give exactly the same result as running *ngs2counts* across
+the lanes.
+
+So the issue then is the meta data JSON file. The former case gives one "run unit", the latter two.
+The combined file I created in the text editor reflects running as if it were the latter case, but
+you need it to be the former. Also there are things to combine in the meta file.
+
+For each "run unit", the count matches the sum of the counts from the CSV. I've checked this too.
+Also the `percentReadsPf` in the "libraries" section is simply the `readsPf` &div; `reads` &times; 100.
+So to fix the meta file, we need to:
+
+1. Change the file name in the run unit to be the same as the combined output file.
+2. Add the `matchedCounts` in each run unit together.
+3. Add the `readsPf` and `reads` counts in each library together.
+4. Re-calculate `percentReadsPf` based on the totals for `readsPf` and `reads`.
+
+This is a bit fiddly by hand, but easily done with a script. This repository contains a converstion
+of my original R script into a Python equivalent that adds up the counts and recalculates the values
+in the meta file, plus sets the file name. I've checked that the numbers it gives are the same as the
+values running ngs2counts on both lanes combined and as two separate lanes.
