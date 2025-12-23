@@ -23,16 +23,25 @@ def combineOLink(folder: Path, counts_file_name: str, meta_file_name: str, force
     if combined_meta_file.exists() and not force:
         sys.exit(f"The file {combined_counts_file} already exists.")
 
-    counts_pattern = "*.olink_counts.csv"
-    meta_pattern = "*.olink_meta.json"
+    counts = combineCounts(folder)
+    meta = combineMeta(folder, counts_file_name)
 
+    # Write counts and meta
+
+    counts.to_csv(combined_counts_file, sep=';', index=False)
+    with combined_meta_file.open('wt') as fp:
+        json.dump(meta, fp, indent = 2)
+
+    print(f"Combined Olink counts file has been saved to {combined_counts_file}")
+    print(f"The updated meta file has been saved to {combined_meta_file}")
+
+def combineCounts(folder: Path):
+
+    counts_pattern = "*.olink_counts.csv"
     olink_counts_files = list(folder.glob(counts_pattern))
-    olink_meta_files = list(folder.glob(meta_pattern))
 
     if not olink_counts_files:
         sys.exit(f"No Olink counts files found matching '{counts_pattern}' in {folder}")
-    if not olink_meta_files:
-        sys.exit(f"No Olink meta files found matching '{meta_pattern}' in {folder}")
 
     # Define column types (dtypes for pandas)
     column_types = {
@@ -64,6 +73,16 @@ def combineOLink(folder: Path, counts_file_name: str, meta_file_name: str, force
         counts['count'] = counts[['count.x', 'count.y']].sum(axis=1, skipna=True)
         counts = counts[['sample_index', 'forward_barcode', 'reverse_barcode', 'count']]
 
+    return counts
+
+def combineMeta(folder: Path, counts_file_name: str):
+
+    meta_pattern = "*.olink_meta.json"
+    olink_meta_files = list(folder.glob(meta_pattern))
+
+    if not olink_meta_files:
+        sys.exit(f"No Olink meta files found matching '{meta_pattern}' in {folder}")
+
     # Read the first meta file
     with olink_meta_files[0].open('rt') as fp:
         meta = json.load(fp)
@@ -83,14 +102,7 @@ def combineOLink(folder: Path, counts_file_name: str, meta_file_name: str, force
     meta_lib['percentReadsPf'] = meta_lib['readsPf'] / meta_lib['reads'] * 100.0
     meta_unit['countsFileName'] = counts_file_name
 
-    # Write counts and meta
-
-    counts.to_csv(combined_counts_file, sep=';', index=False)
-    with combined_meta_file.open('wt') as fp:
-        json.dump(meta, fp, indent = 2)
-
-    print(f"Combined Olink counts file has been saved to {combined_counts_file}")
-    print(f"The updated meta file has been saved to {combined_meta_file}")
+    return meta
 
 if __name__ == '__main__':
     args = parseArgs()
